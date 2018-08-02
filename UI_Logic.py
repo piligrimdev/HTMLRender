@@ -1,7 +1,9 @@
 from MainWindow_Design import *
 from Render_Design import *
 from PyQt5 import QtCore, QtWebEngineWidgets, QtWidgets
-
+from zipfile import ZipFile as zip
+import os
+import shutil
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEngineView):
     def __init__(self, parent=None):
@@ -13,15 +15,32 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
     def open_loadForm(self):
         selectFile = QtWidgets.QFileDialog()
 
-        selectFile.setNameFilter("HTML (*.html *.xhtml *.htm)")
+        selectFile.setNameFilter("EBook (*.epub)")
         selectFile.exec_()
-        name = selectFile.selectedUrls()
+        name = selectFile.selectedFiles()
         if name != []:
-            name = str(name)
-            name = name.replace("[PyQt5.QtCore.QUrl('", "")
-            name = name.replace("')]", "")
-            load_form = LoadForm(name)
-            load_form.exec_()
+            epub = zip(name[0])
+            core_dir = 'C:\\Users\\User\\PycharmProjects\\HTMLRender\\Books\\'
+            try:
+                namelist = epub.namelist()
+                for name in namelist:
+                    epub.extract(name, core_dir)
+                    if name.endswith('.opf'):
+                        countOf = core_dir.count('\\')
+                        opfFile = 'file:///' + core_dir.replace('\\', '/', countOf) + name
+
+
+                print(opfFile)
+                loadForm = LoadForm(opfFile)
+                loadForm.exec_()
+            except FileNotFoundError:
+                print("Something gone wrong!")
+            finally:
+                for root, dirs, files in os.walk(core_dir):
+                    for f in files:
+                        os.unlink(os.path.join(root, f))
+                    for d in dirs:
+                        shutil.rmtree(os.path.join(root, d))
 
 
 class LoadForm(QtWidgets.QDialog, Ui_Dialog, QtWebEngineWidgets.QWebEngineView):
