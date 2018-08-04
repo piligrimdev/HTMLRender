@@ -2,8 +2,29 @@ from MainWindow_Design import *
 from Render_Design import *
 from PyQt5 import QtCore, QtWebEngineWidgets, QtWidgets
 from zipfile import ZipFile as zip
+from bs4 import BeautifulSoup as bs
 import os
+import io
 import shutil
+
+def Title_Refs(dir, opfFile):
+    with open(str(dir + opfFile)) as file:
+        opfInfo = file.read()
+    soup = bs(opfInfo)
+    list = []
+    refs = soup.find_all('item', {'media-type': 'application/xhtml+xml'})
+    for item in refs:
+        list.append(item.get('href'))
+
+    titles = []
+    for item in list:
+        path = dir + item
+        file = io.open(path, encoding='utf-8')
+        title_soup = bs(file.read())
+        title = title_soup.find('title').text
+        titles.append(title)
+
+    print(titles)
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEngineView):
     def __init__(self, parent=None):
@@ -20,18 +41,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
         name = selectFile.selectedFiles()
         if name != []:
             epub = zip(name[0])
-            core_dir = 'C:\\Users\\User\\PycharmProjects\\HTMLRender\\Books\\'
+            core_dir = r'C:/Users/User/PycharmProjects/HTMLRender/Books/'
             try:
                 namelist = epub.namelist()
                 for name in namelist:
                     epub.extract(name, core_dir)
                     if name.endswith('.opf'):
-                        countOf = core_dir.count('\\')
-                        opfFile = 'file:///' + core_dir.replace('\\', '/', countOf) + name
+                        raw_name = name
+                        opfFile = 'file:///' + core_dir + name
 
-
+                Title_Refs(core_dir, raw_name)
                 print(opfFile)
                 loadForm = LoadForm(opfFile)
+                self.close()
                 loadForm.exec_()
             except FileNotFoundError:
                 print("Something gone wrong!")
