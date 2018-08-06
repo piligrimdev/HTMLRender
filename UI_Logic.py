@@ -1,8 +1,11 @@
 from MainWindow_Design import *
 from Render_Design import *
+from List_Desing import *
+
 from PyQt5 import QtCore, QtWebEngineWidgets, QtWidgets
-from zipfile import ZipFile as zip
 from bs4 import BeautifulSoup as bs
+
+from zipfile import ZipFile as zip
 import os
 import io
 import shutil
@@ -19,12 +22,16 @@ def Title_Refs(dir, opfFile):
     titles = []
     for item in list:
         path = dir + item
+        item = []
+        item.append(path)
         file = io.open(path, encoding='utf-8')
         title_soup = bs(file.read())
         title = title_soup.find('title').text
-        titles.append(title)
+        item.append(title)
+        titles.append(item)
 
     print(titles)
+    return  titles
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEngineView):
     def __init__(self, parent=None):
@@ -50,11 +57,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
                         raw_name = name
                         opfFile = 'file:///' + core_dir + name
 
-                Title_Refs(core_dir, raw_name)
+                names = Title_Refs(core_dir, raw_name)
                 print(opfFile)
-                loadForm = LoadForm(opfFile)
-                self.close()
-                loadForm.exec_()
+                lw = List_Files(names)
+                lw.setModal(True)
+                self.hide()
+                lw.exec_()
+                self.setHidden(False)
             except FileNotFoundError:
                 print("Something gone wrong!")
             finally:
@@ -77,3 +86,24 @@ class LoadForm(QtWidgets.QDialog, Ui_Dialog, QtWebEngineWidgets.QWebEngineView):
     def load(self):
         url = self.lineEdit.text()
         self.widget.load(QtCore.QUrl(url))
+
+
+class List_Files(QtWidgets.QDialog, Ui_Form):
+    def __init__(self, namesList):
+        super().__init__()
+        self.setupUi(self)
+        self.dict = {}
+        self.listWidget.itemDoubleClicked.connect(self.load)
+        for name in namesList:
+                self.dict[name[1]] = name[0]
+                item = QtWidgets.QListWidgetItem(name[1], self.listWidget)
+                self.listWidget.insertItem(0, item)
+
+    def load(self, item):
+        print(item.text())
+        raw_name = self.dict[item.text()]
+        url = 'file:///' + raw_name
+        self.hide()
+        ld = LoadForm(url)
+        ld.exec_()
+        self.exec_()
