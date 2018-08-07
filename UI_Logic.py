@@ -10,21 +10,12 @@ import os
 import io
 import shutil
 
-def Title_Refs(dir, opfFile):
-    with open(str(dir + opfFile)) as file:
-        opfInfo = file.read()
-    soup = bs(opfInfo)
-    list = []
-    refs = soup.find_all('item', {'media-type': 'application/xhtml+xml'})
-    for item in refs:
-        list.append(item.get('href'))
-
+def Title_Refs(files):
     titles = []
-    for item in list:
-        path = dir + item
+    for file in files:
         item = []
-        item.append(path)
-        file = io.open(path, encoding='utf-8')
+        item.append(file)
+        file = io.open(file, encoding='utf-8')
         title_soup = bs(file.read())
         title = title_soup.find('title').text
         item.append(title)
@@ -39,6 +30,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
         self.setupUi(self)
         self.actionOpen.triggered.connect(self.open_loadForm)
         self.file_view.load(QtCore.QUrl('file:///C:/Users/User/PycharmProjects/HTMLRender/MaWinTitle.html'))
+        self.ListForm = List_Files()
+        self.RenderForm = LoadForm()
+        self.stackedWidget.addWidget(self.ListForm)
+
+    def closeEvent(self, event):
+        for root, dirs, files in os.walk(self.core_dir):
+            for f in files:
+                os.unlink(os.path.join(root, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(root, d))
 
     def open_loadForm(self):
         selectFile = QtWidgets.QFileDialog()
@@ -48,62 +49,64 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
         name = selectFile.selectedFiles()
         if name != []:
             epub = zip(name[0])
-            core_dir = r'C:/Users/User/PycharmProjects/HTMLRender/Books/'
+            self.core_dir = r'C:/Users/User/PycharmProjects/HTMLRender/Books/'
+            files = []
             try:
                 namelist = epub.namelist()
                 for name in namelist:
-                    epub.extract(name, core_dir)
+                    epub.extract(name, self.core_dir)
                     if name.endswith('.opf'):
                         raw_name = name
-                        opfFile = 'file:///' + core_dir + name
+                        opfFile = 'file:///' + self.core_dir + name
+                    elif name.endswith('.html') or name.endswith('xhtml'):
+                        files.append(self.core_dir + name)
 
-                names = Title_Refs(core_dir, raw_name)
+
                 print(opfFile)
-                lw = List_Files(names)
-                lw.setModal(True)
-                self.hide()
-                lw.exec_()
-                self.setHidden(False)
-            except FileNotFoundError:
+                names = Title_Refs(files)
+                self.ListForm.setList(names)
+                self.stackedWidget.setCurrentIndex(1)
+            except FileNotFoundError as err:
                 print("Something gone wrong!")
-            finally:
-                for root, dirs, files in os.walk(core_dir):
-                    for f in files:
-                        os.unlink(os.path.join(root, f))
-                    for d in dirs:
-                        shutil.rmtree(os.path.join(root, d))
+                print('Error: ', str(err))
 
 
 class LoadForm(QtWidgets.QDialog, Ui_Dialog, QtWebEngineWidgets.QWebEngineView):
-    def __init__(self, openUrl = None):
+    def __init__(self):
         super().__init__()
         self.setupUi(self)
-        if openUrl is None:
-            self.file_view.load(QtCore.QUrl('https://www.google.com/'))
-        else:
-            self.file_view.load(QtCore.QUrl(openUrl))
-
-    def load(self):
-        url = self.lineEdit.text()
-        self.widget.load(QtCore.QUrl(url))
+    def load(self, u):
+        self.url = u
+        self.file_view.load(QtCore.QUrl(self.url))
 
 
 class List_Files(QtWidgets.QDialog, Ui_Form):
-    def __init__(self, namesList):
+    def __init__(self, namesList = None):
         super().__init__()
         self.setupUi(self)
+
         self.dict = {}
+        self.url = ''
+        self.LoadForm = LoadForm()
+
         self.listWidget.itemDoubleClicked.connect(self.load)
-        for name in namesList:
-                self.dict[name[1]] = name[0]
-                item = QtWidgets.QListWidgetItem(name[1], self.listWidget)
-                self.listWidget.insertItem(0, item)
+        if namesList is not None:
+            for name in namesList:
+                    self.dict[name[1]] = name[0]
+                    item = QtWidgets.QListWidgetItem(name[1], self.listWidget)
+                    self.listWidget.insertItem(0, item)
 
     def load(self, item):
         print(item.text())
         raw_name = self.dict[item.text()]
-        url = 'file:///' + raw_name
+        self.url = 'file:///' + raw_name
+        self.LoadForm.load(self.url)
         self.hide()
-        ld = LoadForm(url)
-        ld.exec_()
-        self.exec_()
+        self.LoadForm.exec_()
+        self.setHidden(False)
+
+    def setList(self, namesList):
+        for name in namesList:
+            self.dict[name[1]] = name[0]
+            item = QtWidgets.QListWidgetItem(name[1], self.listWidget)
+            self.listWidget.insertItem(0, item)
