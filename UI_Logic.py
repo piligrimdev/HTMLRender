@@ -10,19 +10,32 @@ import os
 import io
 import shutil
 
-def Title_Refs(files):
-    titles = []
+def Title_Refs(core_dir, opfFile, files):
+    with open(opfFile) as opf:
+        text = opf.read()
+    soup = bs(text)
+    list = soup.find_all('item', {'media-type': 'application/xhtml+xml'})
+    new_list = []
+    for item in list:
+        new_list.append(item.get('href'))
+    list = new_list
+    del new_list
+    dict = {}
+    titles = {}
     for file in files:
-        item = []
-        item.append(file)
-        file = io.open(file, encoding='utf-8')
-        title_soup = bs(file.read())
-        title = title_soup.find('title').text
-        item.append(title)
-        titles.append(item)
+        with open(core_dir + file) as f:
+            text = f.read()
 
-    print(titles)
-    return  titles
+        soup = bs(text)
+        titles[file] = soup.find('title').text
+
+    for item in list:
+        for file in files:
+            if item in file:
+                dict[core_dir + file] = titles[file]
+
+    print(dict)
+    return dict
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEngineView):
     def __init__(self, parent=None):
@@ -56,14 +69,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
                 for name in namelist:
                     epub.extract(name, self.core_dir)
                     if name.endswith('.opf'):
-                        raw_name = name
-                        opfFile = 'file:///' + self.core_dir + name
-                    elif name.endswith('.html') or name.endswith('xhtml'):
-                        files.append(self.core_dir + name)
-
+                        opfFile = self.core_dir + name
+                    elif name.endswith('html') or name.endswith('xhtml'):
+                        files.append(name)
 
                 print(opfFile)
-                names = Title_Refs(files)
+                names = Title_Refs(self.core_dir, opfFile, files)
                 self.ListForm.setList(names)
                 self.stackedWidget.setCurrentIndex(1)
             except FileNotFoundError as err:
@@ -98,8 +109,7 @@ class List_Files(QtWidgets.QDialog, Ui_Form):
 
     def load(self, item):
         print(item.text())
-        raw_name = self.dict[item.text()]
-        self.url = 'file:///' + raw_name
+        self.url = 'file:///' + self.dict[item.text()]
         self.LoadForm.load(self.url)
         self.hide()
         self.LoadForm.exec_()
@@ -107,6 +117,7 @@ class List_Files(QtWidgets.QDialog, Ui_Form):
 
     def setList(self, namesList):
         for name in namesList:
-            self.dict[name[1]] = name[0]
-            item = QtWidgets.QListWidgetItem(name[1], self.listWidget)
+            self.dict[namesList[name]] = name
+            item = QtWidgets.QListWidgetItem(name, self.listWidget)
+            item.setText(namesList[name])
             self.listWidget.insertItem(0, item)
