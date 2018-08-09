@@ -10,6 +10,7 @@ import os
 import io
 import shutil
 
+
 def Title_Refs(core_dir, opfFile, files):
     with open(opfFile) as opf:
         text = opf.read()
@@ -23,8 +24,16 @@ def Title_Refs(core_dir, opfFile, files):
     dict = {}
     titles = {}
     for file in files:
-        with open(core_dir + file) as f:
+        try:
+            f = open(core_dir + file)
             text = f.read()
+        except Exception as e:
+            print("There'is a problem: " + str(e))
+            try:
+                f = open(core_dir + file, encoding='utf8')
+                text = f.read()
+            except Exception as e:
+                print("I'd open it in ut8, but it fucked up again\nSrry bro, just skip it\n" + str(e))
 
         soup = bs(text)
         titles[file] = soup.find('title').text
@@ -41,6 +50,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
     def __init__(self, parent=None):
         super().__init__()
         self.setupUi(self)
+        self.core_dir = r'C:/Users/User/PycharmProjects/HTMLRender/Books/'
         self.actionOpen.triggered.connect(self.open_loadForm)
         self.file_view.load(QtCore.QUrl('file:///C:/Users/User/PycharmProjects/HTMLRender/MaWinTitle.html'))
         self.ListForm = List_Files()
@@ -62,7 +72,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow, QtWebEngineWidgets.QWebEn
         name = selectFile.selectedFiles()
         if name != []:
             epub = zip(name[0])
-            self.core_dir = r'C:/Users/User/PycharmProjects/HTMLRender/Books/'
             files = []
             try:
                 namelist = epub.namelist()
