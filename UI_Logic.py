@@ -95,10 +95,32 @@ class LoadForm(QtWidgets.QDialog, Ui_Dialog, QtWebEngineWidgets.QWebEngineView):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.pushButton.clicked.connect(self.go_back_page)
+        self.pushButton1.clicked.connect(self.go_next_page)
+        self.pushButton2.clicked.connect(self.open_list)
+
     def load(self, u):
         self.url = u
         self.file_view.load(QtCore.QUrl(self.url))
 
+    def setItem(self, it):
+        self.item = it
+
+    def setItemsWid(self, wid):
+        self.itemwid = wid
+
+    def go_back_page(self):
+        try:
+            self.itemwid.load_prev(self.item)
+        except Exception as e:
+            print(e)
+
+    def go_next_page(self):
+        self.itemwid.load_next(self.item)
+
+    def open_list(self):
+        self.itemwid.setHidden(False)
+        self.close()
 
 class List_Files(QtWidgets.QDialog, Ui_Form):
     def __init__(self, namesList = None):
@@ -108,6 +130,7 @@ class List_Files(QtWidgets.QDialog, Ui_Form):
         self.dict = {}
         self.url = ''
         self.LoadForm = LoadForm()
+        self.itemList = {}
 
         self.listWidget.itemDoubleClicked.connect(self.load)
         if namesList is not None:
@@ -117,16 +140,53 @@ class List_Files(QtWidgets.QDialog, Ui_Form):
                     self.listWidget.insertItem(0, item)
 
     def load(self, item):
+        self.LoadForm.setItemsWid(self)
         print(item.text())
         self.url = 'file:///' + self.dict[item.text()]
+        self.LoadForm.setItem(item)
         self.LoadForm.load(self.url)
         self.hide()
         self.LoadForm.exec_()
         self.setHidden(False)
 
+    def load_prev(self, item):
+            index = self.itemList[item.text()] - 1
+            if index >= 0:
+                self.listWidget.setCurrentRow(index)
+                item_prev = self.listWidget.currentItem()
+                print(item_prev.text())
+                self.url = 'file:///' + self.dict[item_prev.text()]
+                self.LoadForm.setItem(item_prev)
+                self.LoadForm.load(self.url)
+            else:
+                mbox = QtWidgets.QMessageBox()
+                mbox.setText("There's no more previews pages!")
+                mbox.exec_()
+
+    def load_next(self, item):
+            index = self.itemList[item.text()] + 1
+            if index <= self.pagesCount:
+                self.listWidget.setCurrentRow(index)
+                item_prev = self.listWidget.currentItem()
+                print(item_prev.text())
+                self.url = 'file:///' + self.dict[item_prev.text()]
+                self.LoadForm.setItem(item_prev)
+                self.LoadForm.load(self.url)
+            else:
+                mbox = QtWidgets.QMessageBox()
+                mbox.setText("There's no more pages!")
+                mbox.exec_()
+
     def setList(self, namesList):
+        count = 0
         for name in namesList:
             self.dict[namesList[name]] = name
             item = QtWidgets.QListWidgetItem(name, self.listWidget)
             item.setText(namesList[name])
-            self.listWidget.insertItem(0, item)
+            try:
+                self.itemList[item.text()] = count
+                self.listWidget.insertItem(0, item)
+            except Exception as e:
+                print(e)
+            count += 1
+        self.pagesCount = count
