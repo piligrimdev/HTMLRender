@@ -24,16 +24,8 @@ def Title_Refs(core_dir, opfFile, files):
     dict = {}
     titles = {}
     for file in files:
-        try:
-            f = open(core_dir + file)
-            text = f.read()
-        except Exception as e:
-            print("There'is a problem: " + str(e))
-            try:
-                f = open(core_dir + file, encoding='utf8')
-                text = f.read()
-            except Exception as e:
-                print("I'd open it in ut8, but it fucked up again\nSrry bro, just skip it\n" + str(e))
+        f = open(core_dir + file, encoding='utf8')
+        text = f.read()
 
         soup = bs(text)
         titles[file] = soup.find('title').text
